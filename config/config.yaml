@@ -1,0 +1,5 @@
+general:
+  tool_name: LinuxEye
+  log_dir: logs/
+  log_file: linux-eye.log
+  refresh_interval: 5

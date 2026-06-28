@@ -1,0 +1,83 @@
+================================================================
+PROJECT: linux-eye
+TOOL NAME: LinuxEye
+DESCRIPTION: A Linux security monitoring tool that watches your
+             system for suspicious activity in real-time.
+================================================================
+
+IDEA
+----
+Most Linux users have no idea what is happening on their system
+in real-time. LinuxEye solves this by acting as a silent watcher
+that monitors every critical layer of the system and alerts the
+user when something suspicious happens.
+
+Think of it as your personal EDR (Endpoint Detection & Response)
+tool — lightweight, open-source, and built for Linux.
+
+
+WHAT IT MONITORS
+----------------
+1. Processes     - Detects suspicious or unknown running processes
+2. Files         - Watches critical files for modifications,
+                   deletions, or permission changes (inotify)
+3. Network       - Monitors active connections and open ports
+4. Logins        - Detects failed and successful login attempts
+5. Users         - Detects new users, deleted users, privilege changes
+6. USB Devices   - Detects devices being connected or removed (udev)
+7. Services      - Monitors systemd services starting/stopping
+8. Packages      - Tracks software installations and removals
+9. Cron Jobs     - Monitors scheduled tasks for modifications
+10. Custom Rules - User-defined detection rules for custom alerts
+
+
+OUTPUT
+------
+- CLI dashboard (real-time, terminal-based)
+- Web dashboard (browser-based, optional)
+- JSON structured logs with timestamps and severity levels
+- Security reports (daily/on-demand)
+
+
+TECH STACK
+----------
+Language   : Python 3
+CLI UI     : rich (tables, live panels, colored alerts)
+File Watch : inotify (via inotify-simple)
+USB Events : udev (via pyudev)
+Web UI     : FastAPI + plain HTML/CSS
+Logs       : JSON format, stored in /var/log/linux-eye/
+Config     : /etc/linux-eye/config.yaml
+
+
+SEVERITY LEVELS
+---------------
+INFO     - Normal activity worth logging
+WARNING  - Unusual but not immediately dangerous
+CRITICAL - Immediate attention required
+
+
+PROJECT STRUCTURE (planned)
+----------------------------
+linux-eye/
+├── linux_eye/
+│   ├── monitors/
+│   │   └── process_monitor.py ✅
+│   ├── utils/
+│   │   ├── config.py          ✅
+│   │   └── logger.py          ✅
+│   └── main.py                ✅
+├── config/
+│   └── config.yaml            ✅
+├── README.md                  ✅
+├── LICENSE                    ✅
+└── requirements.txt           ✅
+
+
+GOAL
+----
+A real, resume-worthy project that shows deep Linux internals
+knowledge — not just log parsing, but actual kernel-level event
+monitoring using inotify, udev, /proc, and D-Bus.
+
+================================================================
