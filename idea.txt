@@ -62,17 +62,33 @@ PROJECT STRUCTURE (planned)
 linux-eye/
 ├── linux_eye/
 │   ├── monitors/
-│   │   └── process_monitor.py ✅
+│   │   ├── process_monitor.py
+│   │   ├── file_monitor.py
+│   │   ├── network_monitor.py
+│   │   ├── login_monitor.py
+│   │   ├── user_monitor.py
+│   │   ├── usb_monitor.py
+│   │   ├── service_monitor.py
+│   │   ├── package_monitor.py
+│   │   └── cron_monitor.py
+│   ├── engine/
+│   │   ├── rule_engine.py
+│   │   └── alert_manager.py
+│   ├── dashboard/
+│   │   ├── cli.py
+│   │   └── web.py
 │   ├── utils/
-│   │   ├── config.py          ✅
-│   │   └── logger.py          ✅
-│   └── main.py                ✅
+│   │   ├── logger.py
+│   │   └── config.py
+│   └── main.py
 ├── config/
-│   └── config.yaml            ✅
-├── README.md                  ✅
-├── LICENSE                    ✅
-└── requirements.txt           ✅
-
+│   └── config.yaml
+├── rules/
+│   └── default.rules
+├── logs/
+├── idea.txt
+├── README.md
+└── requirements.txt
 
 GOAL
 ----
