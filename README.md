@@ -1,87 +1,125 @@
 # linux-eye
 
-linux-eye is a small Linux process monitor that scans running processes in a loop and records anything it considers suspicious.
+linux-eye is a lightweight, low-footprint Linux security monitor designed to watch your system for suspicious process activity and network behavior in real-time.
 
-It is lightweight, dependency-free apart from `psutil` and `PyYAML`, and writes structured log entries to `logs/linux-eye.log`.
+It is dependency-free apart from `psutil` and `PyYAML`, and records structured, JSON-formatted entries to `logs/linux-eye.log` by default.
 
-## What it does
+---
 
-Each cycle, the monitor:
+## Features
 
-1. Lists the current running processes.
-2. Checks each process name against a built-in list of suspicious keywords.
-3. Writes either an `INFO` or `CRITICAL` log entry for every process.
+### 1. Process Monitoring
+* **Suspicious Keyword Matching**: Periodically scans all running processes and checks their executable/process names against a list of suspicious keywords (e.g., shell utilities, hacking tools, common exploitation syntax, and unexpected system administrative commands).
+* **Logging**: Generates detailed `INFO` logs for standard running processes and elevated `CRITICAL` alerts when process names match the signature list.
 
-This is a keyword-based detector, not a full EDR or malware scanner.
+### 2. Network Connection & Port Scan Detection
+* **Active Connections Tracking**: Continuously tracks remote socket connections on the system.
+* **Port Scan Detection**: Tracks connection attempts per remote IP address. If a single remote IP attempts connections to more than **2 distinct ports within a 3-second window**, it triggers a `CRITICAL` "Possible port scan detected" alert.
+
+---
 
 ## Requirements
 
-- Python 3.10 or newer
-- A Linux system
+* Python 3.10 or newer
+* A Linux system with access to `/proc` and network interfaces
+* Root/sudo privileges (recommended, to inspect socket connections owned by other users and all running processes)
+
+---
 
 ## Installation
 
-```bash
-git clone https://github.com/amitpadhan525/linux-eye.git
-cd linux-eye
-pip install -r requirements.txt
-```
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/amitpadhan525/linux-eye.git
+   cd linux-eye
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+---
 
 ## Configuration
 
-The default settings live in [config/config.yaml](config/config.yaml):
+The application reads its runtime configuration from [config/config.yaml](file:///home/amit/github/linux-eye/config/config.yaml):
 
-- `tool_name`: display name used by the project
-- `log_dir`: directory for logs
-- `log_file`: log filename
-- `refresh_interval`: delay in seconds between scans
+```yaml
+general:
+  tool_name: LinuxEye
+  log_dir: logs/
+  log_file: linux-eye.log
+  refresh_interval: 5
+```
 
-The logger writes JSON lines to `logs/linux-eye.log` by default.
+* `tool_name`: Display name used by the monitor.
+* `log_dir`: The directory where the log files will be written.
+* `log_file`: The filename of the log output.
+* `refresh_interval`: Scan frequency delay in seconds between cycles.
 
-## Run
+---
 
-Start the monitor from the repository root:
+## Running the Application
+
+To run the monitor, run the main package module from the repository root:
 
 ```bash
 python -m linux_eye.main
 ```
 
-The process runs continuously until you stop it with `Ctrl+C`.
+> [!NOTE]
+> Running as a standard user will successfully monitor processes owned by that user but might miss connections or process information owned by other users or root. Running with `sudo` is recommended for full visibility.
 
-## Logs
+---
 
-Each log entry includes:
+## How It Works
 
-- timestamp
-- severity
-- source
-- message
-- details about the process
+1. **Entry Point**: The application starts in [linux_eye/main.py](file:///home/amit/github/linux-eye/linux_eye/main.py) with a `while True` loop that executes the active monitors.
+2. **Execution Cycle**:
+   * **Process Check**: Runs [process_monitor.run()](file:///home/amit/github/linux-eye/linux_eye/monitors/process_monitor.py), retrieving process tables using `psutil`.
+   * **Network Check**: Runs [network_monitor.run()](file:///home/amit/github/linux-eye/linux_eye/monitors/network_monitor.py), checking open TCP/UDP socket connections.
+   * **Wait**: Sleeps for `refresh_interval` seconds before the next check.
+3. **Alerting / Logging**:
+   * Log entries are serialized as JSON Lines to `logs/linux-eye.log` by [linux_eye/utils/logger.py](file:///home/amit/github/linux-eye/linux_eye/utils/logger.py).
 
-Example output is stored in `logs/linux-eye.log`.
+### Example JSON Log Output
+```json
+{
+  "timestamp": "2026-06-30T14:30:15.123456",
+  "severity": "CRITICAL",
+  "message": "Possible port scan detected",
+  "source": "network_monitor",
+  "details": "192.168.1.50 hit {80, 443, 22} multiple ports recently"
+}
+```
 
-## How it works
-
-The main loop is in [linux_eye/main.py](linux_eye/main.py). It calls the process monitor every `refresh_interval` seconds, and the monitor logic is in [linux_eye/monitors/process_monitor.py](linux_eye/monitors/process_monitor.py).
+---
 
 ## Limitations
 
-- Detection is based on process name matching only.
-- False positives are possible because common shell tools and admin utilities are included in the keyword list.
-- It does not inspect process arguments, hashes, network connections, or filesystem activity.
+* **Keyword-based Process Detection**: Detection relies on process names and does not evaluate file hashes, deep system call activity, or command-line arguments.
+* **Simple Network Heuristics**: Port scanning detection is time-and-port threshold based and might raise false positives on high-throughput machines or web browsers making rapid connections.
 
-## Project layout
+---
+
+## Project Layout
 
 ```text
-linux_eye/
-	main.py                # entry point
-	monitors/
-		process_monitor.py   # process scanning logic
-	utils/
-		config.py            # config loader
-		logger.py            # JSON log writer
-config/
-	config.yaml            # runtime settings
-logs/
-	linux-eye.log          # generated log file
+linux-eye/
+├── config/
+│   └── config.yaml            # Runtime configurations
+├── linux_eye/
+│   ├── main.py                # Main loop entry point
+│   ├── monitors/
+│   │   ├── network_monitor.py # Active connection monitoring & port scan detection
+│   │   └── process_monitor.py # Process matching signatures
+│   └── utils/
+│       ├── config.py          # Config loader utility
+│       └── logger.py          # JSON structured logging implementation
+├── logs/
+│   └── linux-eye.log          # Generated structured log files
+├── idea.txt                   # Brainstormed development roadmap
+├── requirements.txt           # Dependencies
+└── LICENSE                    # Project license
 ```
