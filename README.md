@@ -1,125 +1,119 @@
 # linux-eye
 
-linux-eye is a lightweight, low-footprint Linux security monitor designed to watch your system for suspicious process activity and network behavior in real-time.
+linux-eye is a lightweight Linux security monitor that watches three things in parallel:
+process activity, network connections, and critical file changes under `/etc`.
+It writes structured JSONL logs to `logs/linux-eye.log` by default.
 
-It is dependency-free apart from `psutil` and `PyYAML`, and records structured, JSON-formatted entries to `logs/linux-eye.log` by default.
+## What it detects
 
----
+### Process monitoring
+The process monitor scans running processes with `psutil` and raises a `CRITICAL`
+event when the command line matches known suspicious patterns or tool names.
 
-## Features
+The current signature set includes reverse-shell style commands, download-and-execute
+patterns, inline code execution, common persistence commands, obfuscation markers,
+and destructive commands such as `rm -rf` and `chmod 777`.
 
-### 1. Process Monitoring
-* **Suspicious Keyword Matching**: Periodically scans all running processes and checks their executable/process names against a list of suspicious keywords (e.g., shell utilities, hacking tools, common exploitation syntax, and unexpected system administrative commands).
-* **Logging**: Generates detailed `INFO` logs for standard running processes and elevated `CRITICAL` alerts when process names match the signature list.
+### Network monitoring
+The network monitor tracks remote socket connections. If the same remote IP touches
+more than 2 distinct ports within a 3 second window, it logs a `CRITICAL`
+"Possible port scan detected" event.
 
-### 2. Network Connection & Port Scan Detection
-* **Active Connections Tracking**: Continuously tracks remote socket connections on the system.
-* **Port Scan Detection**: Tracks connection attempts per remote IP address. If a single remote IP attempts connections to more than **2 distinct ports within a 3-second window**, it triggers a `CRITICAL` "Possible port scan detected" alert.
+### File monitoring
+The file monitor watches `/etc` with inotify and alerts on changes to sensitive files:
+`passwd`, `shadow`, and `sudoers`.
 
----
+It logs:
+* `CRITICAL` when one of those files is modified or deleted
+* `WARNING` when file attributes or permissions change
 
 ## Requirements
 
 * Python 3.10 or newer
-* A Linux system with access to `/proc` and network interfaces
-* Root/sudo privileges (recommended, to inspect socket connections owned by other users and all running processes)
-
----
+* Linux with access to `/proc` and inotify
+* Packages listed in [requirements.txt](requirements.txt)
+* `sudo` is recommended for broader visibility into processes and sockets owned by other users
 
 ## Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/amitpadhan525/linux-eye.git
-   cd linux-eye
-   ```
+1. Clone the repository.
+2. Install dependencies.
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
----
+```bash
+git clone https://github.com/amitpadhan525/linux-eye.git
+cd linux-eye
+pip install -r requirements.txt
+```
 
 ## Configuration
 
-The application reads its runtime configuration from [config/config.yaml](file:///home/amit/github/linux-eye/config/config.yaml):
+Runtime settings live in [config/config.yaml](config/config.yaml):
 
 ```yaml
 general:
-  tool_name: LinuxEye
-  log_dir: logs/
-  log_file: linux-eye.log
-  refresh_interval: 5
+   tool_name: LinuxEye
+   log_dir: logs/
+   log_file: linux-eye.log
+   refresh_interval: 5
 ```
 
-* `tool_name`: Display name used by the monitor.
-* `log_dir`: The directory where the log files will be written.
-* `log_file`: The filename of the log output.
-* `refresh_interval`: Scan frequency delay in seconds between cycles.
+* `tool_name` is the display name used by the app.
+* `log_dir` is the directory for log output.
+* `log_file` is the log filename.
+* `refresh_interval` controls the sleep interval, in seconds, between process and network scans.
 
----
+## Usage
 
-## Running the Application
-
-To run the monitor, run the main package module from the repository root:
+Run the monitor from the repository root:
 
 ```bash
 python -m linux_eye.main
 ```
 
-> [!NOTE]
-> Running as a standard user will successfully monitor processes owned by that user but might miss connections or process information owned by other users or root. Running with `sudo` is recommended for full visibility.
+The application starts two threads:
+* one thread loops over process and network checks
+* one thread blocks on file events under `/etc`
 
----
+## Logging
 
-## How It Works
+Logs are written as JSON lines. Each entry contains a timestamp, severity, source,
+message, and details payload.
 
-1. **Entry Point**: The application starts in [linux_eye/main.py](file:///home/amit/github/linux-eye/linux_eye/main.py) with a `while True` loop that executes the active monitors.
-2. **Execution Cycle**:
-   * **Process Check**: Runs [process_monitor.run()](file:///home/amit/github/linux-eye/linux_eye/monitors/process_monitor.py), retrieving process tables using `psutil`.
-   * **Network Check**: Runs [network_monitor.run()](file:///home/amit/github/linux-eye/linux_eye/monitors/network_monitor.py), checking open TCP/UDP socket connections.
-   * **Wait**: Sleeps for `refresh_interval` seconds before the next check.
-3. **Alerting / Logging**:
-   * Log entries are serialized as JSON Lines to `logs/linux-eye.log` by [linux_eye/utils/logger.py](file:///home/amit/github/linux-eye/linux_eye/utils/logger.py).
+Example:
 
-### Example JSON Log Output
 ```json
 {
-  "timestamp": "2026-06-30T14:30:15.123456",
-  "severity": "CRITICAL",
-  "message": "Possible port scan detected",
-  "source": "network_monitor",
-  "details": "192.168.1.50 hit {80, 443, 22} multiple ports recently"
+   "timestamp": "2026-07-12T14:30:15.123456",
+   "severity": "CRITICAL",
+   "message": "Possible port scan detected",
+   "source": "network_monitor",
+   "details": "192.168.1.50 hit {80, 443, 22} multiple ports recently"
 }
 ```
-
----
-
-## Limitations
-
-* **Keyword-based Process Detection**: Detection relies on process names and does not evaluate file hashes, deep system call activity, or command-line arguments.
-* **Simple Network Heuristics**: Port scanning detection is time-and-port threshold based and might raise false positives on high-throughput machines or web browsers making rapid connections.
-
----
 
 ## Project Layout
 
 ```text
 linux-eye/
 ├── config/
-│   └── config.yaml            # Runtime configurations
+│   └── config.yaml
 ├── linux_eye/
-│   ├── main.py                # Main loop entry point
+│   ├── main.py
 │   ├── monitors/
-│   │   ├── network_monitor.py # Active connection monitoring & port scan detection
-│   │   └── process_monitor.py # Process matching signatures
+│   │   ├── file_monitor.py
+│   │   ├── network_monitor.py
+│   │   └── process_monitor.py
 │   └── utils/
-│       ├── config.py          # Config loader utility
-│       └── logger.py          # JSON structured logging implementation
+│       ├── config.py
+│       └── logger.py
 ├── logs/
-│   └── linux-eye.log          # Generated structured log files
-├── idea.txt                   # Brainstormed development roadmap
-├── requirements.txt           # Dependencies
-└── LICENSE                    # Project license
+├── idea.txt
+├── requirements.txt
+└── LICENSE
 ```
+
+## Notes and limitations
+
+* Process detection is command-line and name based. It does not inspect hashes, kernel events, or full behavioral telemetry.
+* Network detection is heuristic and can produce false positives on busy hosts.
+* File monitoring currently only watches `/etc` and a small list of sensitive filenames.
