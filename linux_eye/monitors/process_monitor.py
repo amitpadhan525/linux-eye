@@ -1,124 +1,74 @@
 import psutil
+import shlex
 from linux_eye.utils.logger import log_critical, log_info
-# SUSPICIOUS_KEYWORDS = ["cmd.exe", "powershell", "bash", "sh", "eval(", "exec(", "system(", "subprocess", "os.system", "popen", "spawn", "`", "|", "&&", "||", ";", "$(", "${", "select * from", "drop table", "delete from", "insert into", "union select", "or 1=1", "--", "/*", "*/", "xp_cmdshell", "sp_executesql", "information_schema", "../", "..\\", "/etc/passwd", "/etc/shadow", "C:\\Windows", "C:\\System32", "var/log", "proc/self", "file://", "wget", "curl", "nc -e", "netcat", "nmap", "sqlmap", "nikto", "burp", "metasploit", "meterpreter", "reverse shell", "bind shell", "base64", "import os", "import subprocess", "compile(", "execfile(", "__import__", "getattr", "setattr", "globals", "locals", "<script>", "javascript:", "onerror=", "onload=", "alert(", "document.cookie", "eval(unescape", "iframe", "object", "sudo", "su -", "chmod 777", "chmod +x", "passwd", "useradd", "cron", "crontab", "authorized_keys", "id_rsa", ".env", "secret", "password", "api_key", "token", "private_key"]
-SUSPICIOUS_KEYWORDS = [
+
+SUSPICIOUS_PATTERNS = [
     # Reverse shells
     "bash -i",
     "sh -i",
     "/dev/tcp/",
     "mkfifo",
     "nc -e",
-    "ncat",
-    "netcat",
-    "socat",
 
     # Download & execute
     "curl | bash",
     "curl | sh",
     "wget | bash",
     "wget | sh",
-    "curl http",
-    "wget http",
 
-    # Command execution
-    "eval(",
-    "exec(",
-    "system(",
-    "os.system",
-    "subprocess",
-    "popen",
-    "__import__",
-    "compile(",
-
-    # Interpreters used for payloads
+    # Inline code execution
     "python -c",
     "python3 -c",
     "perl -e",
     "ruby -e",
     "php -r",
 
-    # Encoding / obfuscation
-    "base64",
-    "xxd",
-    "openssl enc",
-
-    # Privilege escalation
-    "sudo",
-    "su -",
-    "pkexec",
+    # Dangerous shell execution
+    "eval(",
+    "exec(",
+    "system(",
+    "os.system",
+    "subprocess",
+    "popen",
 
     # Persistence
-    "crontab",
-    "cron",
     "systemctl enable",
     "systemctl start",
-    "authorized_keys",
 
-    # Sensitive files
-    "/etc/passwd",
-    "/etc/shadow",
-    ".ssh",
-    "id_rsa",
-    ".env",
+    # Obfuscation
+    "base64",
 
-    # Suspicious directories
-    "/tmp/",
-    "/dev/shm/",
-    "/var/tmp/",
-
-    # Reconnaissance
+    # Dangerous commands
+    "chmod 777",
+    "chmod +x",
+    "rm -rf",
+    "dd if=",
+]
+SUSPICIOUS_TOOLS = {
     "nmap",
     "masscan",
     "arp-scan",
     "netdiscover",
-    "whoami",
-    "hostname",
-    "id",
-    "uname -a",
-    "ifconfig",
-    "ip addr",
-
-    # Password attacks
+    "sqlmap",
+    "nikto",
     "hydra",
     "john",
     "hashcat",
-
-    # Exploitation
-    "msfconsole",
-    "msfvenom",
-    "meterpreter",
-    "sqlmap",
-    "nikto",
-    "searchsploit",
-
-    # Packet sniffing
     "tcpdump",
-    "wireshark",
     "ettercap",
     "bettercap",
     "responder",
-
-    # File permission abuse
-    "chmod 777",
-    "chmod +x",
-    "chown root",
-
-    # Dangerous deletion
-    "rm -rf",
-    "dd if=",
-
-    # Secrets
-    "password",
-    "passwd",
-    "token",
-    "api_key",
-    "secret",
-    "private_key"
-]
+    "msfconsole",
+    "msfvenom",
+    "meterpreter",
+    "netcat",
+    "ncat",
+    "socat",
+}
 
 def get_all_processes():
     process_list = []
-    for proc in psutil.process_iter(['pid', 'name', 'username']):
+    for proc in psutil.process_iter(['pid', 'name', 'username', 'cmdline', 'exe']):
         try:
             process_list.append(proc.info)
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -126,17 +76,31 @@ def get_all_processes():
     return process_list
 
 def check_suspicious(proc):
-    if proc['name'] in SUSPICIOUS_KEYWORDS:
-        return True
-    else:
-        return False
-    
+    cmdline = " ".join(proc.get("cmdline", []))
+    cmdline = cmdline.lower()
+
+    try:
+        tokens = set(shlex.split(cmdline))
+    except ValueError:
+        tokens = set(cmdline.split())
+
+    # Exact executable/tool names
+    for tool in SUSPICIOUS_TOOLS:
+        if tool in tokens:
+            return True
+
+    # Multi-word patterns
+    for pattern in SUSPICIOUS_PATTERNS:
+        if pattern in cmdline:
+            return True
+
+    return False
 def run():
     for proc in get_all_processes():
         if check_suspicious(proc):
             log_critical(
                 source='process_monitor',
-                message=f"Suspicious process detected: {proc['name']}",
+                message=f"Suspicious command detected: {' '.join(proc.get('cmdline', []))}",
                 details=proc
             )
         # else:
