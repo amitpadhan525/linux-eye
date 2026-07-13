@@ -14,8 +14,8 @@ def monitor_loop():
 def main():
     print("------- LinuxEye Started -------")
 
-    t1 = threading.Thread(target=monitor_loop)
-    t2 = threading.Thread(target=file_monitor.run)
+    t1 = threading.Thread(target=monitor_loop,daemon=True)
+    t2 = threading.Thread(target=file_monitor.run,daemon=True)
 
     t1.start()
     t2.start()
