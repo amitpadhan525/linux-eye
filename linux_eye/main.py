@@ -1,4 +1,4 @@
-from linux_eye.monitors import process_monitor, network_monitor, file_monitor
+from linux_eye.monitors import process_monitor, network_monitor, file_monitor, login_monitor
 from linux_eye.utils.config import CONFIG
 import time
 import threading
@@ -16,12 +16,15 @@ def main():
 
     t1 = threading.Thread(target=monitor_loop,daemon=True)
     t2 = threading.Thread(target=file_monitor.run,daemon=True)
+    t3 = threading.Thread(target=login_monitor.run,daemon=True)
 
     t1.start()
     t2.start()
+    t3.start()
 
     t1.join()
     t2.join()
+    t3.join()
 
 if __name__ == "__main__":
     main()
