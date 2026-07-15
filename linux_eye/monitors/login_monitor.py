@@ -1,12 +1,15 @@
-import subprocess
 from linux_eye.utils.logger import log_critical,log_info,log_warning
-process=subprocess.Popen(['journalctl','-f'],stdout=subprocess.PIPE,text=True)
+from linux_eye.utils.config import CONFIG
 from collections import deque
+import subprocess
 import time
 
+process=subprocess.Popen(['journalctl','-f'],stdout=subprocess.PIPE,text=True)
+
 failed_logins={}
-WINDOW_SECONDS = 60
-THRESHOLD = 5
+WINDOW_SECONDS = CONFIG['login_monitor']['window_seconds']
+THRESHOLD = CONFIG['login_monitor']['threshold']
+
 def check_brute_force(line):
     if 'pam_unix(sudo:auth): authentication failure' not in line:
         return
@@ -20,6 +23,7 @@ def check_brute_force(line):
         return
     
     now=time.time()
+
     if username in failed_logins:
         failed_logins[username].append(now)
     else:
