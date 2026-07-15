@@ -3,3 +3,7 @@ general:
   log_dir: logs/
   log_file: linux-eye.log
   refresh_interval: 5
+
+login_monitor:
+  window_seconds: 60
+  threshold: 5
