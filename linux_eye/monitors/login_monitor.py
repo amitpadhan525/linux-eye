@@ -37,7 +37,7 @@ def check_brute_force(line):
     if len(failed_logins[username])>=THRESHOLD:
         log_critical(
             source='Log monitor',
-            message=f"Multiple failed login attempt on username {username}.",
+            message=f"Multiple failed login attempt on user {username}.",
             details={
                 "username": username,
                 "failure_count": len(failed_logins[username]),

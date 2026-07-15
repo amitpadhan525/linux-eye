@@ -6,4 +6,4 @@ general:
 
 login_monitor:
   window_seconds: 60
-  threshold: 5
+  threshold: 3
