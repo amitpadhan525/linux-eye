@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from linux_eye.utils.config import    CONFIG
+from linux_eye.utils.config import CONFIG
 
 log_dir=CONFIG['general']['log_dir']
 log_file=CONFIG['general']['log_file']
