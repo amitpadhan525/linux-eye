@@ -11,9 +11,12 @@ WINDOW_SECONDS = CONFIG['login_monitor']['window_seconds']
 THRESHOLD = CONFIG['login_monitor']['threshold']
 
 def check_brute_force(line):
+    if 'pam_unix(sudo:session): session opened' in line:
+        username=line.split('user=')[1].split(' ')[0]
+        if username in failed_logins:
+            failed_logins.pop(username)
     if 'pam_unix(sudo:auth): authentication failure' not in line:
         return
-    
     if 'user=' in line:
         username=line.split('user=')[1].split(' ')[0]
     else:
