@@ -8,14 +8,23 @@ from linux_eye.utils.config import CONFIG, BASE_DIR
 log_dir_setting = CONFIG['general'].get('log_dir', 'logs')
 log_file_setting = CONFIG['general'].get('log_file', 'linux-eye.log')
 
-# Resolve relative path against project base directory
-if not os.path.isabs(log_dir_setting):
-    log_dir = os.path.join(BASE_DIR, log_dir_setting)
-else:
+# Resolve destination directory
+if os.path.isabs(log_dir_setting):
     log_dir = log_dir_setting
+elif os.path.exists('/etc/linux-eye/config.yaml') or 'site-packages' in BASE_DIR or 'dist-packages' in BASE_DIR:
+    log_dir = '/var/log/linux-eye'
+else:
+    log_dir = os.path.join(BASE_DIR, log_dir_setting)
 
 log_path = os.path.join(log_dir, log_file_setting)
-os.makedirs(log_dir, exist_ok=True)
+
+try:
+    os.makedirs(log_dir, exist_ok=True)
+except Exception:
+    # Fallback to local user / tmp directory if permission denied
+    log_dir = os.path.expanduser('~/.local/state/linux-eye')
+    os.makedirs(log_dir, exist_ok=True)
+    log_path = os.path.join(log_dir, log_file_setting)
 
 # Lock for thread-safe file writes
 _log_lock = threading.Lock()

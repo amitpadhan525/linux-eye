@@ -1,8 +1,27 @@
+<div align="center">
+
 # 👁️ LinuxEye
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-orange.svg)](#)
+**Lightweight real-time Linux security & endpoint detection monitor (EDR)**
+
+[![Release](https://img.shields.io/github/v/release/amitpadhan525/linux-eye?style=flat-square&color=blue&logo=github)](https://github.com/amitpadhan525/linux-eye/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Platform: Linux](https://img.shields.io/badge/Platform-Linux-FCC624.svg?style=flat-square&logo=linux&logoColor=black)](#)
+
+<br />
+
+<a href="https://github.com/amitpadhan525/linux-eye/releases/latest">
+  <img src="https://img.shields.io/badge/⬇️%20Download-Latest%20Release-0066cc?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release" height="40">
+</a>
+&nbsp;&nbsp;
+<a href="https://github.com/amitpadhan525/linux-eye/releases">
+  <img src="https://img.shields.io/badge/📦%20Packages-.deb%20%7C%20.whl%20%7C%20tar.gz-238636?style=for-the-badge&logo=linux&logoColor=white" alt="Download Packages" height="40">
+</a>
+
+<br /><br />
+
+</div>
 
 LinuxEye is a lightweight, real-time security monitor (Endpoint Detection and Response - EDR style) designed for Linux environments. It runs silently in the background, monitoring system activity across processes, network sockets, critical configuration files, USB devices, and authentication logs to detect suspicious behavior and potential security threats.
 
@@ -121,7 +140,11 @@ sudo ./uninstall.sh
 
 ### Method 2: 📦 Debian / Ubuntu (`.deb`) Package
 
-Download the `.deb` package from [GitHub Releases](https://github.com/amitpadhan525/linux-eye/releases) or build it locally:
+<a href="https://github.com/amitpadhan525/linux-eye/releases/latest">
+  <img src="https://img.shields.io/badge/Download-.deb%20Package-blue?style=flat-square&logo=debian&logoColor=white" alt="Download .deb">
+</a>
+
+Download the `.deb` package directly from [GitHub Releases](https://github.com/amitpadhan525/linux-eye/releases/latest) or build it locally:
 
 ```bash
 # Build locally

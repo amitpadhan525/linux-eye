@@ -68,6 +68,7 @@ def build_deb():
         os.makedirs(debian_dir, exist_ok=True)
         os.makedirs(os.path.join(data_dir, "opt", "linux-eye"), exist_ok=True)
         os.makedirs(os.path.join(data_dir, "etc", "systemd", "system"), exist_ok=True)
+        os.makedirs(os.path.join(data_dir, "usr", "bin"), exist_ok=True)
         os.makedirs(os.path.join(data_dir, "usr", "local", "bin"), exist_ok=True)
 
         # 1. Populate data payload
@@ -80,10 +81,12 @@ def build_deb():
 
         shutil.copy(os.path.join(base_dir, "systemd", "linux-eye.service"), os.path.join(data_dir, "etc", "systemd", "system"))
 
-        launcher_path = os.path.join(data_dir, "usr", "local", "bin", "linux-eye")
-        with open(launcher_path, "w") as f:
-            f.write("#!/usr/bin/env bash\ncd /opt/linux-eye && sudo /opt/linux-eye/.venv/bin/python -m linux_eye.main \"$@\"\n")
-        os.chmod(launcher_path, 0o755)
+        launcher_script = "#!/usr/bin/env bash\ncd /opt/linux-eye && sudo /opt/linux-eye/.venv/bin/python -m linux_eye.main \"$@\"\n"
+        for bin_dir in ["usr/bin", "usr/local/bin"]:
+            launcher_path = os.path.join(data_dir, bin_dir, "linux-eye")
+            with open(launcher_path, "w") as f:
+                f.write(launcher_script)
+            os.chmod(launcher_path, 0o755)
 
         # 2. Control file
         with open(os.path.join(debian_dir, "control"), "w") as f:

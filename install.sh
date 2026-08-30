@@ -54,6 +54,7 @@ cat << 'EOF' > "${BIN_LINK}"
 cd /opt/linux-eye && sudo /opt/linux-eye/.venv/bin/python -m linux_eye.main "$@"
 EOF
 chmod +x "${BIN_LINK}"
+ln -sf "${BIN_LINK}" /usr/bin/linux-eye 2>/dev/null || true
 
 # 7. Install systemd service unit
 if [ -f "${SERVICE_FILE}" ]; then

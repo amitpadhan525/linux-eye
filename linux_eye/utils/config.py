@@ -1,9 +1,10 @@
 import os
 import yaml
 
-# Find the project root directory
+# Project root directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'config.yaml')
+LOCAL_CONFIG_PATH = os.path.join(BASE_DIR, 'config', 'config.yaml')
+SYSTEM_CONFIG_PATH = '/etc/linux-eye/config.yaml'
 
 DEFAULT_CONFIG = {
     'general': {
@@ -26,24 +27,31 @@ DEFAULT_CONFIG = {
     }
 }
 
+def get_config_path():
+    """Find appropriate config path with priority: system-wide -> local repo."""
+    if os.path.exists(SYSTEM_CONFIG_PATH):
+        return SYSTEM_CONFIG_PATH
+    if os.path.exists(LOCAL_CONFIG_PATH):
+        return LOCAL_CONFIG_PATH
+    return None
+
 def load_config():
-    if os.path.exists(CONFIG_PATH):
+    config_file = get_config_path()
+    if config_file and os.path.exists(config_file):
         try:
-            with open(CONFIG_PATH, 'r') as f:
+            with open(config_file, 'r') as f:
                 loaded = yaml.safe_load(f)
                 if isinstance(loaded, dict):
                     # Merge with defaults
                     merged = DEFAULT_CONFIG.copy()
                     for key, val in loaded.items():
                         if isinstance(val, dict) and key in merged:
-                            merged[key].update(val)
+                            merged[key] = {**merged[key], **val}
                         else:
                             merged[key] = val
                     return merged
         except Exception as e:
-            print(f"[!] Error loading {CONFIG_PATH}: {e}. Using defaults.")
-    else:
-        print(f"[!] Config file not found at {CONFIG_PATH}. Using default configuration.")
+            print(f"[!] Error loading {config_file}: {e}. Using defaults.")
     return DEFAULT_CONFIG
 
 CONFIG = load_config()

@@ -6,8 +6,7 @@ After=network.target systemd-journald.service
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/linux-eye
-ExecStart=/opt/linux-eye/.venv/bin/python -m linux_eye.main
+ExecStart=/usr/bin/linux-eye
 Restart=always
 RestartSec=5s
 
