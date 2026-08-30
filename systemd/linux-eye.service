@@ -1,0 +1,23 @@
+[Unit]
+Description=LinuxEye - Lightweight Linux Security Monitor Daemon
+Documentation=https://github.com/amitpadhan525/linux-eye
+After=network.target systemd-journald.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/linux-eye
+ExecStart=/opt/linux-eye/.venv/bin/python -m linux_eye.main
+Restart=always
+RestartSec=5s
+
+# Standard output and error logging
+StandardOutput=journal
+StandardError=journal
+
+# Security sandbox settings
+CapabilityBoundingSet=CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_NET_ADMIN CAP_SYS_ADMIN
+AmbientCapabilities=CAP_SYS_PTRACE CAP_DAC_READ_SEARCH CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

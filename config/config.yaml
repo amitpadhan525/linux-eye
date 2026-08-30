@@ -1,9 +1,20 @@
 general:
   tool_name: LinuxEye
-  log_dir: logs/
+  log_dir: logs
   log_file: linux-eye.log
   refresh_interval: 5
 
 login_monitor:
   window_seconds: 60
   threshold: 3
+
+network_monitor:
+  window_seconds: 3
+  port_threshold: 2
+
+file_monitor:
+  watch_dir: /etc
+  critical_files:
+    - passwd
+    - shadow
+    - sudoers

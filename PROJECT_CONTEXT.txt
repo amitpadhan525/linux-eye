@@ -1,0 +1,181 @@
+================================================================================
+LINUX-EYE: PROJECT CONTEXT & ARCHITECTURE SPECIFICATION FOR NEXT CHATS
+================================================================================
+Generated Date: 2026-08-19
+Repository Path: /home/amit/github/linux-eye
+Git Branch: main (Latest commit: 56bc29e "Bug fixed")
+
+--------------------------------------------------------------------------------
+1. PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+LinuxEye is a lightweight, real-time Linux security monitoring tool (EDR - Endpoint
+Detection & Response style). It runs in the background with root/sudo privileges,
+monitoring running processes, network connections, critical file changes, and
+system authentication logs to detect suspicious behavior and potential threats.
+
+All detected events are written as structured JSON Lines (JSONL) entries to a log file
+(default: logs/linux-eye.log).
+
+--------------------------------------------------------------------------------
+2. CURRENT FILE TREE & PROJECT STRUCTURE
+--------------------------------------------------------------------------------
+linux-eye/
+├── config/
+│   └── config.yaml             # Core YAML configuration file
+├── linux_eye/
+│   ├── __init__.py
+│   ├── main.py                 # Application entry point (multi-threaded runner)
+│   ├── monitors/
+│   │   ├── __init__.py
+│   │   ├── file_monitor.py     # Kernel inotify monitoring for /etc files
+│   │   ├── login_monitor.py    # Log streaming (journalctl -f) & brute-force engine
+│   │   ├── network_monitor.py  # Socket inspection & port scan detector
+│   │   ├── process_monitor.py  # Process scanning & signature matching
+│   │   └── usb_monitor.py      # Stub for USB monitoring via pyudev
+│   └── utils/
+│       ├── __init__.py
+│       ├── config.py           # YAML config loader module (CONFIG dict)
+│       └── logger.py           # Structured JSON Lines logging helper
+├── logs/
+│   ├── .gitkeep
+│   └── linux-eye.log           # Generated structured log output (JSONL)
+├── .gitignore
+├── idea.txt                    # Project design doc, roadmap, tech stack vision
+├── LICENSE                     # MIT License
+├── README.md                   # Project documentation & setup instructions
+├── requirements.txt            # Python dependencies (pyyaml, psutil, inotify_simple)
+├── test.py                     # Temporary test script
+└── PROJECT_CONTEXT.txt         # Complete project context reference file
+
+--------------------------------------------------------------------------------
+3. TECH STACK & SYSTEM REQUIREMENTS
+--------------------------------------------------------------------------------
+- OS Platform: Linux (Requires systemd/journalctl & /proc filesystem access)
+- Language: Python 3.10+
+- Execution Mode: Elevated privileges required (sudo / root)
+- Installed Dependencies (requirements.txt):
+    * pyyaml           (YAML configuration parsing)
+    * psutil           (Process enumeration & network socket inspection)
+    * inotify_simple   (Linux kernel inotify filesystem event monitoring)
+- Target/Planned Dependencies (from idea.txt):
+    * rich             (Terminal CLI dashboard with live panels & tables)
+    * pyudev           (USB event monitoring via udev)
+    * FastAPI + HTML   (Web-based security dashboard)
+
+--------------------------------------------------------------------------------
+4. MODULE BREAKDOWN & DETAILED CODE LOGIC
+--------------------------------------------------------------------------------
+
+[A] Entry Point: linux_eye/main.py
+    - Imports all monitors and config.
+    - Defines `monitor_loop()`: continuously executes `process_monitor.run()` and
+      `network_monitor.run()` every `refresh_interval` seconds (configured in config.yaml).
+    - `main()` launches 3 daemon threads:
+        Thread 1: `monitor_loop` (process & network scanning)
+        Thread 2: `file_monitor.run` (inotify blocking loop)
+        Thread 3: `login_monitor.run` (journalctl log stream reader)
+    - Calls `.join()` on all 3 threads to keep the main program alive.
+
+[B] Process Monitor: linux_eye/monitors/process_monitor.py
+    - Uses `psutil.process_iter(['pid', 'name', 'username', 'cmdline', 'exe'])`.
+    - `SUSPICIOUS_PATTERNS`: List of string patterns matching reverse shells (bash -i, nc -e,
+      /dev/tcp), download-and-execute (curl|sh, wget|sh), inline code (python -c, perl -e),
+      dangerous functions (eval, exec, os.system), persistence (systemctl enable),
+      obfuscation (base64), and dangerous commands (chmod 777, rm -rf, dd if=).
+    - `SUSPICIOUS_TOOLS`: Set of binary tool signatures (nmap, masscan, sqlmap, hydra, john,
+      hashcat, tcpdump, ettercap, bettercap, msfconsole, msfvenom, meterpreter, netcat, ncat, socat).
+    - `check_suspicious(proc)`: Tokenizes process command lines using `shlex.split()` and checks
+      for matching tools or multi-word pattern substrings.
+    - Logs CRITICAL alerts to `logger.py` when suspicious processes are found.
+
+[C] Network Monitor: linux_eye/monitors/network_monitor.py
+    - Uses `psutil.net_connections()` to check active remote IP connections (`raddr`).
+    - Maintains a global dictionary `dic = { ip: [(port, timestamp), ...] }`.
+    - `clean_old_entries()`: Evicts connection entries older than 3 seconds.
+    - `check_suspicious()`: If a single remote IP connects to more than 2 distinct ports
+      within the 3-second window, triggers a CRITICAL alert ("Possible port scan detected").
+
+[D] Filesystem Monitor: linux_eye/monitors/file_monitor.py
+    - Uses `inotify_simple.INotify()` watching the `/etc` directory.
+    - Watch flags: `IN_MODIFY`, `IN_DELETE`, `IN_ATTRIB`.
+    - Watched files (`CRITICAL_FILES`): `passwd`, `shadow`, `sudoers`.
+    - Triggers:
+        * CRITICAL alert on file MODIFIED or DELETED.
+        * WARNING alert on file permission/attribute changed (ATTRIB).
+
+[E] Login Monitor: linux_eye/monitors/login_monitor.py
+    - Spawns `subprocess.Popen(['journalctl', '-f'], stdout=subprocess.PIPE, text=True)`.
+    - Reads line-by-line from `journalctl` stdout.
+    - Events parsed:
+        * `pam_unix(sudo:session): session opened` -> Logs INFO ("Login successful"), resets failed login counter for user.
+        * `pam_unix(sudo:auth): authentication failure` -> Logs WARNING ("Wrong Password entered").
+    - Brute Force Engine (`check_brute_force`):
+        * Maintains sliding window queue `failed_logins = { username: deque([timestamps]) }`.
+        * Window size: `window_seconds` (default 60s from config.yaml).
+        * Threshold: `threshold` (default 3 failures from config.yaml).
+        * Triggers CRITICAL alert when failed attempts >= threshold within rolling window.
+
+[F] USB Monitor: linux_eye/monitors/usb_monitor.py
+    - Currently a stub containing `import pyudev` and `context = pyudev.Context()`. Unfinished.
+
+[G] Configuration Utility: linux_eye/utils/config.py
+    - Loads `config/config.yaml` using PyYAML.
+    - Exposes global `CONFIG` dictionary.
+
+[H] Logging Utility: linux_eye/utils/logger.py
+    - Reads `log_dir` and `log_file` from `CONFIG`.
+    - Ensures `logs/` directory exists.
+    - Exports helper functions: `log_info()`, `log_warning()`, `log_critical()`.
+    - Log Format: JSON Lines (ISO 8601 timestamp, severity, message, source, details).
+
+--------------------------------------------------------------------------------
+5. CONFIGURATION FILE (config/config.yaml)
+--------------------------------------------------------------------------------
+general:
+  tool_name: LinuxEye
+  log_dir: logs/
+  log_file: linux-eye.log
+  refresh_interval: 5
+
+login_monitor:
+  window_seconds: 60
+  threshold: 3
+
+--------------------------------------------------------------------------------
+6. IDENTIFIED CODE QUALITY & TECHNICAL IMPROVEMENT AREAS
+--------------------------------------------------------------------------------
+1. `usb_monitor.py`: Incomplete implementation. Needs event loop listening to USB insertion/removal via `pyudev.Monitor`.
+2. `network_monitor.py`:
+   - Uses built-in `tuple` as a variable name (`for tuple in dic[ip]:`). Should be renamed.
+   - Hardcoded values (3-second window, >2 ports threshold) should be moved to `config.yaml`.
+3. `file_monitor.py`:
+   - Hardcoded directory (`/etc`) and critical files (`passwd`, `shadow`, `sudoers`). Should be configurable in `config.yaml`.
+4. `login_monitor.py`:
+   - Subprocess `journalctl -f` initialized on import time rather than inside `run()`.
+   - Journal string parsing relies on standard `pam_unix` string format; SSH login monitoring (`sshd`) can be added for comprehensive coverage.
+5. `utils/config.py`:
+   - Hardcoded relative path `'config/config.yaml'` will fail if the script is run from a subfolder or outside root. Path should be resolved relative to project base path.
+6. `main.py`:
+   - Graceful termination: Lacks `signal` handler / `try-except KeyboardInterrupt` handling for clean exit when pressing Ctrl+C.
+7. Requirements & Dependencies:
+   - `pyudev` is required for `usb_monitor.py` but not present in `requirements.txt`.
+
+--------------------------------------------------------------------------------
+7. PROJECT ROADMAP & PLANNED EXTENSIONS (from idea.txt)
+--------------------------------------------------------------------------------
+- Additional Monitors: User monitor (`user_monitor.py`), Service monitor (`service_monitor.py`), Package monitor (`package_monitor.py`), Cron monitor (`cron_monitor.py`).
+- Rule Engine: Custom rules parser (`engine/rule_engine.py`) and alert manager (`engine/alert_manager.py`).
+- CLI Dashboard: Terminal UI using `rich` library with live monitoring panels and tables.
+- Web Dashboard: Web dashboard built with FastAPI + HTML/CSS for browser visualization.
+
+--------------------------------------------------------------------------------
+8. HOW TO RUN THE PROJECT
+--------------------------------------------------------------------------------
+1. Activate virtual environment:
+   source .venv/bin/activate
+2. Install dependencies (if not already installed):
+   pip install -r requirements.txt
+3. Run LinuxEye with elevated privileges:
+   sudo .venv/bin/python -m linux_eye.main
+
+================================================================================

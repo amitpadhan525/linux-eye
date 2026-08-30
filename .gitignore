@@ -36,4 +36,3 @@ logs/*
 *.swp
 *.swo
 .DS_Store
-test.py

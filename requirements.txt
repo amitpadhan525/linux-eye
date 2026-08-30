@@ -1,3 +1,4 @@
-pyyaml
-psutil
-inotify_simple
+pyyaml>=6.0
+psutil>=5.9.0
+inotify_simple>=1.3.5
+pyudev>=0.24.0
